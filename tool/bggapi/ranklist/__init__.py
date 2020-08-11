@@ -7,6 +7,7 @@ import re
 import json
 import time
 
+DEFAULT_NO_VALUE = 'N/A'
 main = 'https://boardgamegeek.com/browse/boardgame/page/'
 
 ctx = ssl.create_default_context()
@@ -16,11 +17,17 @@ ctx.verify_mode = ssl.CERT_NONE
 def get_rank(root):
     if root.get('class')[0].strip() != "collection_rank":
         return -1
+    if not root.find_all('a'):
+        return root.string.strip()
+
     return root.find_all('a')[0].get('name')
 
 def get_image(root):
     if root.get('class')[0].strip() != "collection_thumbnail":
         return -1
+    if not root.find_all('a'):
+        return root.string.strip()
+
     return root.find_all('a')[0].find_all('img')[0].get('src')
 def get_bgid_title_and_year(root):
     if root.get('class')[0].strip() != "collection_objectname":
@@ -28,11 +35,18 @@ def get_bgid_title_and_year(root):
     info = root.find('div', id=re.compile("^results_objectname"))
     link_and_title = info.find_all('a')[0]
     link = link_and_title.get('href')
-    bgid = re.search(r'/boardgame/(.*)/', link).group(1)
+
+    bgid = re.search(r'/boardgame[\w]*/([\d]+)/', link).group(1)
+
     title = link_and_title.string.strip()
-    year = info.find_all('span')[0].string
-    p = re.compile('[()]')
-    year = p.sub('', year).strip()
+
+    if not info.find_all('span'):
+        year = DEFAULT_NO_VALUE
+    else:
+        year = info.find_all('span')[0].string
+        p = re.compile('[()]')
+        year = p.sub('', year).strip()
+
     return (bgid, title, year)
 def get_geekrating(root):
     if root.get('class')[0].strip() != "collection_bggrating":
@@ -137,5 +151,5 @@ def get(main, page=1, limit=-1, store=default_store, interval=10, cnt=0):
             return (cnt, page)
 
 if __name__ == '__main__':
-    info = get(main, page=1, limit=1)
+    info = get(main, page=1193, limit=1194)
     print('Total game: {0}, Last page: {1}'.format(*info))
