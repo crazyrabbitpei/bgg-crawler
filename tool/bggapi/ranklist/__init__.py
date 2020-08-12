@@ -146,7 +146,7 @@ def default_store(result, cnt):
     return
 
 
-def get(main, startpage=1, endpage=float('Inf'), store=default_store, interval=10, cnt=0):
+def get(main, startpage=1, endpage=1, store=default_store, interval=10, cnt=0):
     """
     :param cnt: 紀錄已蒐集到的遊戲資訊數量
     """
