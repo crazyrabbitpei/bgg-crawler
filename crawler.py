@@ -4,8 +4,9 @@ from datetime import datetime
 import math
 import logging
 from logging.handlers import TimedRotatingFileHandler
+import os
 
-url = 'https://boardgamegeek.com/browse/boardgame/page'
+RANK_URL = 'https://boardgamegeek.com/browse/boardgame/page'
 
 csvfile = None
 writer = None
@@ -42,7 +43,7 @@ def main():
 
     api = BGGAPI()
     logging.info("共蒐集到 {0} 筆遊戲, 最後一頁為 {1}".format(
-        *api.get_rank_list(mainurl=url, startpage=1, endpage=float('Inf'), store=store, interval=1)))
+        *api.get_rank_list(mainurl=RANK_URL, startpage=int(os.getenv('RANK_PAGE_FROM', 1)), endpage=int(os.getenv('RANK_PAGE_TO', float('Inf'))), store=store, interval=int(os.getenv('INTERVAL', 1)))))
 
     if csvfile:
         csvfile.close()
