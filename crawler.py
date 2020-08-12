@@ -43,7 +43,7 @@ def main():
 
     api = BGGAPI()
     logging.info("共蒐集到 {0} 筆遊戲, 最後一頁為 {1}".format(
-        *api.get_rank_list(mainurl=RANK_URL, startpage=int(os.getenv('RANK_PAGE_FROM', 1)), endpage=int(os.getenv('RANK_PAGE_TO', float('Inf'))), store=store, interval=int(os.getenv('INTERVAL', 1)))))
+        *api.get_rank_list(mainurl=RANK_URL, startpage=int(os.getenv('RANK_PAGE_FROM', 1)), endpage=int(os.getenv('RANK_PAGE_TO', -1)), store=store, interval=int(os.getenv('INTERVAL', 1)))))
 
     if csvfile:
         csvfile.close()
