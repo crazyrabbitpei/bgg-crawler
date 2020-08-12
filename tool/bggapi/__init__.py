@@ -9,7 +9,7 @@ class BGGAPI:
         """Constructor
         """
 
-    def get_rank_list(self, mainurl=None, startpage=1, endpage=1, store=None, interval=10):
+    def get_rank_list(self, mainurl=None, startpage=1, endpage=float('Inf'), store=None, interval=10):
         """
         :param mainurl: bgg排名頁面url
         :param startpage: 從哪一頁開始蒐集，預設從第1頁

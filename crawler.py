@@ -1,6 +1,7 @@
 from tool.bggapi import BGGAPI
 import csv
 from datetime import datetime
+import math
 import logging
 from logging.handlers import TimedRotatingFileHandler
 
@@ -41,7 +42,7 @@ def main():
 
     api = BGGAPI()
     logging.info("共蒐集到 {0} 筆遊戲, 最後一頁為 {1}".format(
-        *api.get_rank_list(mainurl=url, startpage=93, endpage=94, store=store, interval=1)))
+        *api.get_rank_list(mainurl=url, startpage=1, endpage=float('Inf'), store=store, interval=1)))
 
     if csvfile:
         csvfile.close()

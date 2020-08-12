@@ -83,7 +83,7 @@ def del_nonused_fields(data):
 def detect_fields(data):
     flag = True
     err_fields = []
-    check_fields = ['bgid', 'title', 'year']
+    check_fields = ['bgid', 'title']
     for field in check_fields:
         if data[field] == DEFAULT_NO_VALUE:
             flag = False
@@ -138,7 +138,7 @@ def has_nextpage(root, page):
         logging.error('第 {0} 頁的next page link 格式不符合預期'.format(page))
         return False
     else:
-        logging.debug(next_page)
+        #logging.debug(next_page)
         return True
 
 def default_store(result, cnt):
@@ -146,46 +146,51 @@ def default_store(result, cnt):
     return
 
 
-def get(main, page=1, limit=-1, store=default_store, interval=10, cnt=0):
-    url = "{main}/{page}".format(main=main, page=page)
-    try:
-        with urllib.request.urlopen(url, context=ctx) as fhand:
-            data = fhand.read()
-            soup = BeautifulSoup(data, 'html.parser')
-    except HTTPError as e:
-        logging.error("{code}: {reason}({url})".format(
-            code=e.code, reason=e.reason, url=url))
-        return (cnt, page-1)
-    except URLError as e:
-        logging.error(e.reason)
-        return (cnt, page-1)
-    except:
-        logging.error(sys.exc_info())
-        return (cnt, page-1)
-    else:
-        game_index = 0 # 遊戲在該頁的第幾位
-        # 最頂端為欄位文字
-        for tr in soup.find_all('tr')[1:]:
-            try:
-                result = parse_fields(tr, game_index, page)
-            except SyntaxError as e:
-                logging.error(e.msg)
-            else:
-                store(result, cnt)
-                cnt += 1
+def get(main, startpage=1, endpage=float('Inf'), store=default_store, interval=10, cnt=0):
+    """
+    :param cnt: 紀錄已蒐集到的遊戲資訊數量
+    """
+    page = startpage
+    while page <= endpage:
+        url = "{main}/{page}".format(main=main, page=page)
+        logging.info('{0}'.format(url))
 
-            game_index += 1
-
-        page += 1
-        if limit != -1 and page > limit:
-            return (cnt, page-1)
-
-        if has_nextpage(soup, page):
-            time.sleep(interval)
-            return get(main, page, limit, store, interval, cnt)
+        try:
+            with urllib.request.urlopen(url, context=ctx) as fhand:
+                data = fhand.read()
+                soup = BeautifulSoup(data, 'html.parser')
+        except HTTPError as e:
+            logging.error("{code}: {reason}({url})".format(
+                code=e.code, reason=e.reason, url=url))
+            break
+        except URLError as e:
+            logging.error(e.reason)
+            break
+        except:
+            logging.error(sys.exc_info())
+            break
         else:
-            return (cnt, page)
+            game_index = 0 # 遊戲在該頁的第幾位
+            # 一欄遊戲資訊一個tr，最頂端為欄位文字
+            for tr in soup.find_all('tr')[1:]:
+                try:
+                    result = parse_fields(tr, game_index, page)
+                except SyntaxError as e:
+                    logging.error(e.msg)
+                else:
+                    store(result, cnt)
+                    cnt += 1
+
+                game_index += 1
+
+            if not has_nextpage(soup, page):
+                break
+
+            page += 1
+            time.sleep(interval)
+
+    return (cnt, page-1)
 
 if __name__ == '__main__':
-    info = get(main, page=1193, limit=1194)
+    info = get(main, startpage=1193, endpage=1194)
     print('Total game: {0}, Last page: {1}'.format(*info))
