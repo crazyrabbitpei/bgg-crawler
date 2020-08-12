@@ -6,8 +6,9 @@ import ssl
 import re
 import json
 import time
-import logging
-from logging.handlers import TimedRotatingFileHandler
+from tool.MyLogger import MyLogger
+logger = MyLogger(log_file='./logs/{0}.log'.format(__name__), name=__name__)
+
 
 
 DEFAULT_NO_VALUE = 'N/A'
@@ -135,10 +136,10 @@ def has_nextpage(root, page):
     try:
         next_page = root.find('a', title='next page').get('href')
     except AttributeError:
-        logging.error('第 {0} 頁的next page link 格式不符合預期'.format(page))
+        logger.error('第 {0} 頁的next page link 格式不符合預期'.format(page))
         return False
     else:
-        #logging.debug(next_page)
+        #logger.debug(next_page)
         return True
 
 def default_store(result, cnt):
@@ -153,21 +154,21 @@ def get(main, startpage=1, endpage=1, store=default_store, interval=10, cnt=0):
     page = startpage
     while page <= endpage:
         url = "{main}/{page}".format(main=main, page=page)
-        logging.info('{0}'.format(url))
+        logger.info('{0}'.format(url))
 
         try:
             with urllib.request.urlopen(url, context=ctx) as fhand:
                 data = fhand.read()
                 soup = BeautifulSoup(data, 'html.parser')
         except HTTPError as e:
-            logging.error("{code}: {reason}({url})".format(
+            logger.error("{code}: {reason}({url})".format(
                 code=e.code, reason=e.reason, url=url))
             break
         except URLError as e:
-            logging.error(e.reason)
+            logger.error(e.reason)
             break
         except:
-            logging.error(sys.exc_info())
+            logger.error(sys.exc_info())
             break
         else:
             game_index = 0 # 遊戲在該頁的第幾位
@@ -176,7 +177,7 @@ def get(main, startpage=1, endpage=1, store=default_store, interval=10, cnt=0):
                 try:
                     result = parse_fields(tr, game_index, page)
                 except SyntaxError as e:
-                    logging.error(e.msg)
+                    logger.error(e.msg)
                 else:
                     store(result, cnt)
                     cnt += 1
@@ -192,5 +193,5 @@ def get(main, startpage=1, endpage=1, store=default_store, interval=10, cnt=0):
     return (cnt, page-1)
 
 if __name__ == '__main__':
-    info = get(main, startpage=1193, endpage=1194)
-    print('Total game: {0}, Last page: {1}'.format(*info))
+    info = get(main, startpage=1, endpage=1)
+    logger.info('Total game: {0}, Last page: {1}'.format(*info))
