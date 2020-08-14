@@ -8,7 +8,7 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 import os
 
-logger = MyLogger(log_file='./logs/{0}.log'.format(__name__), name=__name__)
+logger = MyLogger(log_path='./logs', log_file='{0}.log'.format(__name__), name=__name__)
 RANK_URL = 'https://boardgamegeek.com/browse/boardgame/page'
 
 def main():
