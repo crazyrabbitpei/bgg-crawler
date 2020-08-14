@@ -6,13 +6,14 @@ import ssl
 import re
 import json
 import time
-from tool.MyLogger import MyLogger
-logger = MyLogger(log_file='./logs/{0}.log'.format(__name__), name=__name__)
+import logging
 
+from tool.MyException.bgg import *
 
+logger = None
 
 DEFAULT_NO_VALUE = 'N/A'
-main = 'https://boardgamegeek.com/browse/boardgame/page/'
+main = 'https://boardgamegeek.com/browse/boardgame/page'
 
 ctx = ssl.create_default_context()
 ctx.check_hostname = False
@@ -139,11 +140,11 @@ def has_nextpage(root, page):
         logger.error('第 {0} 頁的next page link 格式不符合預期'.format(page))
         return False
     else:
-        #logger.debug(next_page)
+        logger.debug(next_page)
         return True
 
 def default_store(result, cnt):
-    print(result)
+    #print(result)
     return
 
 
@@ -193,5 +194,13 @@ def get(main, startpage=1, endpage=1, store=default_store, interval=10, cnt=0):
     return (cnt, page-1)
 
 if __name__ == '__main__':
+    # 如果不加這行則logger.setLevel就無法順利執行，因為在logging沒有呼叫basicConfig前都是沒有handler的，而預設writing to sys.stderr with a level of WARNING, and is used to handle logging events in the absence of any logging configuration
+    logging.basicConfig(level=logging.INFO)  # 隨便給予level，logger.setLevel在設定level
+    logger = logging.getLogger('test')
+    logger.setLevel(logging.DEBUG)
+
     info = get(main, startpage=1, endpage=1)
     logger.info('Total game: {0}, Last page: {1}'.format(*info))
+else:
+    from tool.MyLogger import MyLogger
+    logger = MyLogger(log_file='./logs/{0}.log'.format(__name__), name=__name__)
