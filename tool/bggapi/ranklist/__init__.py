@@ -6,20 +6,39 @@ import ssl
 import re
 import json
 import time
-import logging
-
-from tool.MyException.bgg import *
 
 logger = None
 
+try:
+    from tool.MyLogger import MyLogger
+    from tool.MyException.bgg import *
+except ModuleNotFoundError:
+    import logging
+    # 如果不加這行則logger.setLevel就無法順利執行，因為在logging沒有呼叫basicConfig前都是沒有handler的，而預設writing to sys.stderr with a level of WARNING, and is used to handle logging events in the absence of any logging configuration
+    # 隨便給予level，logger.setLevel在設定level
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger('test')
+    logger.setLevel(logging.DEBUG)
+else:
+    logger = MyLogger(log_path='./logs',log_file='{0}.log'.format(__name__), name=__name__)
+
+
 DEFAULT_NO_VALUE = 'N/A'
 main = 'https://boardgamegeek.com/browse/boardgame/page'
+# get_bgid_title_and_year拿到tuple結果會拆成三個欄位儲存: 'bgid', 'title', 'year'
+result_fields = ['rank', 'image', 'bgid', 'title',
+                 'year', 'geekrating', 'avgrating', 'numvoters', 'others']
+# 「未登入」時所顯示的欄位順序
+fields = ['rank', 'image', 'bgid_title_and_year',
+              'geekrating', 'avgrating', 'numvoters', 'others']
+
 
 ctx = ssl.create_default_context()
 ctx.check_hostname = False
 ctx.verify_mode = ssl.CERT_NONE
 
-def get_rank(root):
+
+def get_rank(root, fieldname, field_index):
     if root.get('class')[0].strip() != "collection_rank":
         return -1
     if not root.find_all('a'):
@@ -27,7 +46,8 @@ def get_rank(root):
 
     return root.find_all('a')[0].get('name')
 
-def get_image(root):
+
+def get_image(root, fieldname, field_index):
     if root.get('class')[0].strip() != "collection_thumbnail":
         return -1
     if not root.find_all('a') or not root.find_all('a')[0].find_all('img'):
@@ -35,7 +55,8 @@ def get_image(root):
 
     return root.find_all('a')[0].find_all('img')[0].get('src')
 
-def get_bgid_title_and_year(root):
+
+def get_bgid_title_and_year(root, fieldname, field_index):
     bgid = DEFAULT_NO_VALUE
     title = DEFAULT_NO_VALUE
     year = DEFAULT_NO_VALUE
@@ -61,19 +82,27 @@ def get_bgid_title_and_year(root):
         year = p.sub('', year).strip()
 
     return (bgid, title, year)
-def get_geekrating(root):
+
+
+def get_geekrating(root, fieldname, field_index):
     if root.get('class')[0].strip() != "collection_bggrating":
         return -1
     return root.string.strip()
-def get_avgrating(root):
+
+
+def get_avgrating(root, fieldname, field_index):
     if root.get('class')[0].strip() != "collection_bggrating":
         return -1
     return root.string.strip()
-def get_numvoters(root):
+
+
+def get_numvoters(root, fieldname, field_index):
     if root.get('class')[0].strip() != "collection_bggrating":
         return -1
     return root.string.strip()
-def get_others(root):
+
+
+def get_others(root, fieldname, field_index):
     return root.get_text
 
 
@@ -95,25 +124,10 @@ def detect_fields(data):
 
 def parse_fields(root, game_index, page):
     result_values = []
-    # get_bgid_title_and_year拿到tuple結果會拆成三個欄位儲存: 'bgid', 'title', 'year'
-    result_fields = ['rank', 'image', 'bgid', 'title',
-                     'year', 'geekrating', 'avgrating', 'numvoters', 'others']
 
-    # 按欄位順序解析: 以下順序為「未登入」時所顯示的欄位
     field_index = 0
-    fields = ['rank', 'image', 'bgid_title_and_year',
-              'geekrating', 'avgrating', 'numvoters', 'others']
-    field_extract = {
-        'rank': get_rank,
-        'image': get_image,
-        'bgid_title_and_year': get_bgid_title_and_year,
-        'geekrating': get_geekrating,
-        'avgrating': get_avgrating,
-        'numvoters': get_numvoters,
-        'others': get_others
-    }
     for td in root.find_all('td'):
-        value = field_extract[fields[field_index]](td)
+        value = field_extract[fields[field_index]](td, fields[field_index], field_index)
 
         if value == -1 or value == None: # -1代表欄位的DOM不符合預期
             raise SyntaxError("Page {page}, NO. {game_index}, Field {fname}({field_index}) 不符合預期格式".format(page=page,
@@ -193,14 +207,17 @@ def get(main, startpage=1, endpage=1, store=default_store, interval=10, cnt=0):
 
     return (cnt, page-1)
 
-if __name__ == '__main__':
-    # 如果不加這行則logger.setLevel就無法順利執行，因為在logging沒有呼叫basicConfig前都是沒有handler的，而預設writing to sys.stderr with a level of WARNING, and is used to handle logging events in the absence of any logging configuration
-    logging.basicConfig(level=logging.INFO)  # 隨便給予level，logger.setLevel在設定level
-    logger = logging.getLogger('test')
-    logger.setLevel(logging.DEBUG)
 
+# 指頂解析欄位函式
+field_extract = {
+    'rank': get_rank,
+    'image': get_image,
+    'bgid_title_and_year': get_bgid_title_and_year,
+    'geekrating': get_geekrating,
+    'avgrating': get_avgrating,
+    'numvoters': get_numvoters,
+    'others': get_others
+}
+if __name__ == '__main__':
     info = get(main, startpage=1, endpage=1)
     logger.info('Total game: {0}, Last page: {1}'.format(*info))
-else:
-    from tool.MyLogger import MyLogger
-    logger = MyLogger(log_file='./logs/{0}.log'.format(__name__), name=__name__)
