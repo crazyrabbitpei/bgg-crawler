@@ -1,4 +1,4 @@
-from . import ranklist
+from . import ranklist, bginfo
 from tool.MyStorage import MyStorage
 from tool.MyException.bgg import *
 
@@ -30,9 +30,15 @@ class BggCralwer:
         # 由於環境變數預設值無法將float inf轉為int，所以-1先暫時代表無限，在這邊才轉成inf
         if endpage == -1:
             endpage = float('Inf')
-
-        result = ranklist.get(mainurl, startpage, endpage,
+        try:
+            result = ranklist.get(mainurl, startpage, endpage,
                               self.storage, interval)
-        self.storeapi.close_storage()
+        except:
+            raise
+        finally:
+            self.storeapi.close_storage()
 
         return result
+
+    def get_bg_info(self):
+        pass

@@ -149,41 +149,57 @@ def parse_fields(root, game_index, page):
 
 def has_nextpage(root, page):
     try:
-        next_page = root.find('a', title='next page').get('href')
+        next_page = root.find('a', title='next page')
     except AttributeError:
-        logger.error('第 {0} 頁的next page link 格式不符合預期'.format(page))
+        pass
+
+    try:
+        first_page = root.find('a', title='first page')
+    except AttributeError:
+        pass
+
+    if not next_page and not first_page:
+        raise RankListPageFormatError('頁數的element格式不符合預期')
+
+    # 已是最後一頁
+    if not next_page and first_page:
         return False
-    else:
-        logger.debug(next_page)
-        return True
+
+    logger.debug('Next page: {0}'.format(next_page.get('href')))
+    return True
 
 def default_store(result, cnt):
     #print(result)
     return
 
 
-def get(main, startpage=1, endpage=1, store=default_store, interval=10, cnt=0):
+def get(mainurl, startpage=1, endpage=1, store=default_store, interval=10, cnt=0):
     """
     :param cnt: 紀錄已蒐集到的遊戲資訊數量
     """
+    connect_error = False
+    error_msg = None
     page = startpage
     while page <= endpage:
-        url = "{main}/{page}".format(main=main, page=page)
-        logger.info('{0}'.format(url))
+        url = "{mainurl}/{page}".format(mainurl=mainurl, page=page)
+        logger.debug('{0}'.format(url))
 
         try:
             with urllib.request.urlopen(url, context=ctx) as fhand:
                 data = fhand.read()
                 soup = BeautifulSoup(data, 'html.parser')
         except HTTPError as e:
-            logger.error("{code}: {reason}({url})".format(
-                code=e.code, reason=e.reason, url=url))
+            error_msg = "{code}: {reason}({url})".format(
+                code=e.code, reason=e.reason, url=url)
+            connect_error = True
             break
         except URLError as e:
-            logger.error(e.reason)
+            error_msg = e.reason
+            connect_error = True
             break
         except:
-            logger.error(sys.exc_info())
+            error_msg = ','.join(sys.exc_info())
+            connect_error = True
             break
         else:
             game_index = 0 # 遊戲在該頁的第幾位
@@ -192,18 +208,25 @@ def get(main, startpage=1, endpage=1, store=default_store, interval=10, cnt=0):
                 try:
                     result = parse_fields(tr, game_index, page)
                 except SyntaxError as e:
-                    logger.error(e.msg)
+                    raise
                 else:
                     store(result, cnt)
                     cnt += 1
 
                 game_index += 1
 
-            if not has_nextpage(soup, page):
-                break
-
             page += 1
+            try:
+                if has_nextpage(soup, page):
+                    break
+            except:
+                raise
+
+
             time.sleep(interval)
+
+    if connect_error:
+        raise BggConnectionError(error_msg)
 
     return (cnt, page-1)
 
@@ -219,5 +242,11 @@ field_extract = {
     'others': get_others
 }
 if __name__ == '__main__':
-    info = get(main, startpage=1, endpage=1)
-    logger.info('Total game: {0}, Last page: {1}'.format(*info))
+    try:
+        info = get(main, startpage=1, endpage=1)
+    except SyntaxError as e:
+        logger.error(e)
+    except:
+        logger.error(sys.exc_info())
+    else:
+        logger.info('Total game: {0}, Last page: {1}'.format(*info))

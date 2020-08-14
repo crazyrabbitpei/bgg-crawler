@@ -3,12 +3,11 @@ from logging import Logger
 from logging.handlers import TimedRotatingFileHandler
 import sys
 import os
+#logging.basicConfig(level=logging.DEBUG)
 
-logging.basicConfig(level=logging.DEBUG)
 
 class MyLogger(Logger):
     def __init__(self, log_path=None, log_file=None, log_format='%(asctime)s - %(levelname)s - %(message)s', *args, **kwargs):
-
         if not os.path.isdir(log_path):
             os.mkdir(log_path, 0o770)
 
