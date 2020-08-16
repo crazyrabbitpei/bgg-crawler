@@ -28,3 +28,10 @@ class RankListPageFormatError(Exception):
     排名頁面的頁數按鈕格式不符合預期
     """
     pass
+
+
+class BgInfoNotComplete(Exception):
+    """
+    桌遊主頁面的script所包含的訊息不如預期
+    """
+    pass

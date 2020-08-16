@@ -40,5 +40,8 @@ class BggCralwer:
 
         return result
 
-    def get_bg_info(self):
-        pass
+    def get_bg_info(self, mainurl=None, bgid=None):
+        try:
+            bginfo.get(mainurl, bgid)
+        except:
+            raise
