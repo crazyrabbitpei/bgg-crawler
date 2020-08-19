@@ -2,6 +2,7 @@ import urllib.request
 from urllib.error import URLError, HTTPError
 from bs4 import BeautifulSoup
 import sys
+import traceback
 import ssl
 import re
 import json
@@ -130,8 +131,8 @@ def parse_fields(root, game_index, page):
         value = field_extract[fields[field_index]](td, fields[field_index], field_index)
 
         if value == -1 or value == None: # -1代表欄位的DOM不符合預期
-            raise SyntaxError("Page {page}, NO. {game_index}, Field {fname}({field_index}) 不符合預期格式".format(page=page,
-                                                                                                           game_index=game_index, field_index=field_index+1, fname=fields[field_index]))
+            raise RankListFieldFormatError("Page {page}, NO. {game_index}, Field {fname}({field_index}) 不符合預期格式".format(page=page,
+                                                                                                           game_index=game_index, field_index=field_index+1, fname=fields[field_index]), traceback.format_exc())
         else:
             if type(value) == tuple:
                 result_values.extend(value)
@@ -143,7 +144,8 @@ def parse_fields(root, game_index, page):
 
     ok, err_fields = detect_fields(result)
     if not ok:
-        raise SyntaxError("Page {page}, NO. {game_index}({bgid}), Fields {fields} 值為 {default}".format(page=page, game_index=game_index, bgid=result['bgid'], fields=','.join(err_fields), default=DEFAULT_NO_VALUE))
+        raise RankListFieldFormatError("Page {page}, NO. {game_index}({bgid}), Fields {fields} 值為 {default}".format(
+            page=page, game_index=game_index, bgid=result['bgid'], fields=','.join(err_fields), default=DEFAULT_NO_VALUE), traceback.format_exc())
 
     return result
 
@@ -159,7 +161,8 @@ def has_nextpage(root, page):
         pass
 
     if not next_page and not first_page:
-        raise RankListPageFormatError('頁數的element格式不符合預期')
+        raise RankListPageFormatError(
+            '頁數的element格式不符合預期', traceback.format_exc())
 
     # 已是最後一頁
     if not next_page and first_page:
@@ -168,7 +171,7 @@ def has_nextpage(root, page):
     logger.debug('Next page: {0}'.format(next_page.get('href')))
     return True
 
-def default_store(result, cnt):
+def default_store(result):
     #print(result)
     return
 
@@ -207,10 +210,10 @@ def get(mainurl, startpage=1, endpage=1, store=default_store, interval=10, cnt=0
             for tr in soup.find_all('tr')[1:]:
                 try:
                     result = parse_fields(tr, game_index, page)
-                except SyntaxError as e:
+                except RankListFieldFormatError as e:
                     raise
                 else:
-                    store(result, cnt)
+                    store(result, 'ranklist')
                     cnt += 1
 
                 game_index += 1
@@ -226,7 +229,7 @@ def get(mainurl, startpage=1, endpage=1, store=default_store, interval=10, cnt=0
             time.sleep(interval)
 
     if connect_error:
-        raise BggConnectionError(error_msg)
+        raise BggConnectionError(error_msg, traceback.format_exc())
 
     return (cnt, page-1)
 
@@ -244,9 +247,9 @@ field_extract = {
 if __name__ == '__main__':
     try:
         info = get(main, startpage=1, endpage=1)
-    except SyntaxError as e:
-        logger.error(e)
+    except RankListFieldFormatError as e:
+        logger.error(e.args)
     except:
-        logger.error(sys.exc_info())
+        logger.error(traceback.format_exc())
     else:
         logger.info('Total game: {0}, Last page: {1}'.format(*info))
