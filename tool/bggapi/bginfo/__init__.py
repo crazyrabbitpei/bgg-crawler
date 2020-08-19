@@ -386,6 +386,7 @@ def parse_geekitem_preload(data, bgid, store=None):
 
     # 不同大小的遊戲圖
     images_result = get_images(items)
+    images_result['bgid'] = bgid
     store(images_result, 'images')
 
     # 遊戲機制、設計師、出版訊息、得過獎項、遊戲版本、擴充...都個個別存放一種類型的檔案
