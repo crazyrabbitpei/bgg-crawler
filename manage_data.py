@@ -39,9 +39,14 @@ class DataManage:
     def select_table(self, tname):
         return pd.read_sql_query("SELECT * FROM {0}".format(tname), self.connection)
 
-    def get_bg_ids_from_rank(self, id_field_name=None, tname=None, limit=10):
-        df = pd.read_sql_query("SELECT {0} FROM {1} limit {2}".format(
-            id_field_name, tname, limit), self.connection)
+    def get_bg_ids_from_rank(self, id_field_name=None, tname=None, limit=None):
+        if limit:
+            command = "SELECT {0} FROM {1} limit {2}".format(
+                id_field_name, tname, limit)
+        else:
+            command = "SELECT {0} FROM {1}".format(
+                id_field_name, tname)
+        df = pd.read_sql_query(command, self.connection)
         return df[id_field_name].values.tolist()
 
     def close_connection(self):
