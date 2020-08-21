@@ -50,7 +50,7 @@ languagedependences = {
 """
 # 網頁版的欄位
 require_fields = ['rankinfo', 'polls', 'stats',
-                 'relatedcounts', 'id', 'href', 'name', 'yearpublished', 'minplayers', 'maxplayers', 'minplaytime', 'maxplaytime', 'minage', 'short_description', 'linkcounts', 'alternatenamescount', 'description', 'images', 'imageurl', 'topimageurl']
+                 'relatedcounts', 'id', 'href', 'name', 'yearpublished', 'minplayers', 'maxplayers', 'minplaytime', 'maxplaytime', 'minage', 'short_description', 'linkcounts', 'alternatenamescount', 'description', 'images', 'imageurl']
 # bgg api版欄位: links和
 api_require_fields = ['links', 'alternatenames']
 
@@ -329,10 +329,10 @@ def get_others(items):
     short_description: str
     alternatenamescount: int，有幾種名稱，不同國家會有不同名稱
     description: str，含html tag，需解析
-    topimageurl: str，遊戲主頁banner圖，ex: https://cf.geekdo-images.com/itemheader/img/FUK6onp6QGuQcN7E6V-sY7dADBk=/800x375/filters:quality(30)/pic3126430.jpg
+    topimageurl: str，不一定存在，遊戲主頁banner圖，ex: https://cf.geekdo-images.com/itemheader/img/FUK6onp6QGuQcN7E6V-sY7dADBk=/800x375/filters:quality(30)/pic3126430.jpg
     """
     result = dict()
-    for field in ['id', 'name', 'yearpublished', 'minplayers', 'maxplayers', 'minplaytime', 'maxplaytime', 'minage', 'short_description', 'alternatenamescount', 'description', 'imageurl', 'topimageurl']:
+    for field in ['id', 'name', 'yearpublished', 'minplayers', 'maxplayers', 'minplaytime', 'maxplaytime', 'minage', 'short_description', 'alternatenamescount', 'description']:
         try:
             _check_field(field, field, items)
         except:
