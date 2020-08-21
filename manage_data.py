@@ -13,7 +13,7 @@ from tool.MyLogger import MyLogger
 logger = MyLogger(log_path='./logs',
                   log_file='{0}.log'.format(__name__), name=__name__)
 
-class DATA_MANAGE:
+class DataManage:
 
     def __init__(self, dbname):
         self.connect_db(dbname)
@@ -39,17 +39,24 @@ class DATA_MANAGE:
     def select_table(self, tname):
         return pd.read_sql_query("SELECT * FROM {0}".format(tname), self.connection)
 
+    def get_bg_ids_from_rank(self, id_field_name=None, tname=None, limit=10):
+        df = pd.read_sql_query("SELECT {0} FROM {1} limit {2}".format(
+            id_field_name, tname, limit), self.connection)
+        return df[id_field_name].values.tolist()
+
     def close_connection(self):
         self.connection.close()
 
 
-dbname = sys.argv[1]
-tname = sys.argv[2]
-csv_file = sys.argv[3]
+# dbname = sys.argv[1]
+# tname = sys.argv[2]
+# # csv_file = sys.argv[3]
 
-manage = DATA_MANAGE('{0}.db'.format(dbname))
-manage.create_table(tname, csv_file=csv_file)
-
-df = manage.select_table(tname)
-
-manage.close_connection()
+# manage = DataManage('{0}.db'.format(dbname))
+# #manage.create_table(tname, csv_file=csv_file)
+# #df = manage.select_table(tname)
+# ids = manage.get_bg_ids_from_rank('id', tname)
+# print(ids)
+# for id in ids:
+#     print(id)
+# manage.close_connection()
