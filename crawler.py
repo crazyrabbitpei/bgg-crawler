@@ -32,8 +32,8 @@ def test_bg_info(bgids, interval=int(os.getenv('INTERVAL', 3))):
         crawler.storeapi.close_storage()
 
 
-def read_bgid_list(id_field_name, tname):
-    return data_manage.get_bg_ids_from_rank(id_field_name, tname)
+def read_bgid_list(id_field_name, tname, limit=100):
+    return data_manage.get_bg_ids_from_rank(id_field_name, tname, limit)
 
 def link_to_db(dbname):
     return DataManage(dbname)
@@ -44,9 +44,11 @@ if __name__ == '__main__':
     dbname = sys.argv[1]
     tname = sys.argv[2]
     id_field_name = sys.argv[3]
+    # 一次拿取多少筆bg id來蒐集
+    limit = sys.argv[4]
 
     data_manage = link_to_db(dbname)
-    ids = read_bgid_list(id_field_name, tname)
+    ids = read_bgid_list(id_field_name, tname, limit)
     try:
         #test_rank_list()
         test_bg_info(ids)
