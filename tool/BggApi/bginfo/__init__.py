@@ -78,10 +78,13 @@ def _check_list_fields(main, items, must=True):
     '''
     確認所有陣列裡的欄位數量一致
     '''
-    same_field_num = False
+    same_field_num = True
+    if len(items) == 0:
+        return same_field_num
+
     cur_fields = list(zip(*items))
-    if len(items[0].keys()) == len(cur_fields):
-        same_field_num = True
+    if len(items[0].keys()) != len(cur_fields):
+        same_field_num = False
 
     if must and not same_field_num:
         raise BgInfoNotComplete('{0} 的各項結果欄位數量不一致: {1}'.format(
