@@ -46,7 +46,7 @@ languagedependences = {
     'Some necessary text - easily memorized or small crib sheet': 2,
     'Moderate in-game text - needs crib sheet or paste ups': 3,
     'Extensive use of text - massive conversion needed to be playable': 4,
-    'Unplayable in another language	': 5
+    'Unplayable in another language': 5
 }
 
 # 網頁版的結果欄位
