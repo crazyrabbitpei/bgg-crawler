@@ -139,7 +139,7 @@ def get_alternatenames(items):
         items['alternatenames'] = []
 
     try:
-        _check_list_fields('alternatenames', items['alternatenames'], len(['nameid', 'name']))
+        _check_list_fields('alternatenames', items['alternatenames'])
     except:
         raise
 
@@ -159,7 +159,7 @@ def get_rank_info(items):
         items['rankinfo'] = []
 
     try:
-        _check_list_fields('rankinfo', items['rankinfo'], len(['veryshortprettyname', 'rank', 'baverage']))
+        _check_list_fields('rankinfo', items['rankinfo'])
     except:
         raise
 
