@@ -30,7 +30,7 @@ else:
 CUR_BGID = None
 # 桌遊資訊會被包在script的這個參數裡
 DEFAULT_PRELOAD_INFO = 'GEEK.geekitemPreload'
-DEFAULT_NO_VALUE = -1
+DEFAULT_NO_VALUE = None
 main = 'https://boardgamegeek.com/boardgame' # 這種方式需要自行parse出script裡的資訊
 # 另一種api: https://api.geekdo.com/api/geekitems?nosession=1&objecttype=thing&subtype=boardgame，可直接得到json
 
@@ -89,7 +89,7 @@ ctx.check_hostname = False
 ctx.verify_mode = ssl.CERT_NONE
 
 
-def _check_field(main, field, item, must=True, default=-1):
+def _check_field(main, field, item, must=True):
     '''
     確認欄位是否存在，不存在則回傳預設值
     '''
@@ -101,7 +101,7 @@ def _check_field(main, field, item, must=True, default=-1):
         raise BgInfoNotComplete('{0} 沒有 {1} 欄位: {2}'.format(main,
             field, item), traceback.format_exc())
 
-    return (exist, default)
+    return exist
 
 def get_alternatenames(items):
     """不一定要存在
@@ -208,7 +208,7 @@ def get_polls(items):
             player_min = info.get('min', DEFAULT_NO_VALUE)
             player_max = info.get('max', DEFAULT_NO_VALUE)
             # 以第一筆min和max都有正整數值的結果為主
-            if player_min > 0 and player_max > 0:
+            if player_min and player_max and player_min > 0 and player_max > 0:
                 break
 
         result['polls_userplayers_{0}_min'.format(field)] = player_min
@@ -245,7 +245,7 @@ def _get_links(main, items):
         for field in require_fields:
             value = item.get(field, DEFAULT_NO_VALUE)
             # 不完整就不存該筆資訊
-            if value == -1:
+            if not value:
                 break
 
             if field == 'name' and name_need_cut:
@@ -418,7 +418,7 @@ def get_others(items):
 
 
         value = items.get(field, DEFAULT_NO_VALUE)
-        if value != -1 and field == 'description':
+        if value and field == 'description':
             soup = BeautifulSoup(value, 'html.parser')
             items[field] = soup.get_text()
         else: result[field] = value
