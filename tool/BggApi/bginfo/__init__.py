@@ -103,47 +103,29 @@ def _check_field(main, field, item, must=True, default=-1):
 
     return (exist, default)
 
-
-def _check_list_fields(main, items, require_field_num=None, must=True):
-    '''
-    確認所有陣列裡的欄位數量一致
-    '''
-    same_field_num = True
-    if len(items) == 0:
-        return same_field_num
-
-    cur_fields = list(zip(*items))
-    if len(items[0].keys()) != len(cur_fields):
-        same_field_num = False
-
-    if must and not same_field_num:
-        raise BgInfoNotComplete('{0} 的各項結果欄位數量不一致: {1}'.format(
-            main, cur_fields), traceback.format_exc())
-
-    if require_field_num and require_field_num != len(cur_fields):
-        raise BgInfoNotComplete('{0} 的各項結果欄位數量與預期({1})不同: {2}'.format(
-            main, require_field_num, cur_fields), traceback.format_exc())
-
-    return same_field_num
-
 def get_alternatenames(items):
     """不一定要存在
-    alternatenames: [{'nameid', 'name'}]
+    alternatenames: [{'nameid', 'name', 'secondaryname'}]
         - nameid: str
         - name: str，不同國家有不同遊戲名稱
+        - secondaryname: boolean
     """
     try:
         _check_field('alternatenames', 'alternatenames', items)
     except Exception as e:
         logger.warning('{0}: {1}'.format(CUR_BGID, e.args))
-        items['alternatenames'] = []
 
-    try:
-        _check_list_fields('alternatenames', items['alternatenames'])
-    except:
-        raise
+    result = []
 
-    return items['alternatenames']
+    require_fields = ['nameid', 'name', 'secondaryname']
+    alternatenames = items.get('alternatenames', [])
+    for item in alternatenames:
+        tmp = {}
+        for field in require_fields:
+            tmp[field] = item.get(field, DEFAULT_NO_VALUE)
+        result.append(tmp)
+
+    return result
 
 def get_rank_info(items):
     """不一定要存在
@@ -156,12 +138,6 @@ def get_rank_info(items):
         _check_field('rankinfo', 'rankinfo', items)
     except Exception as e:
         logger.warning('{0}: {1}'.format(CUR_BGID, e.args))
-        items['rankinfo'] = []
-
-    try:
-        _check_list_fields('rankinfo', items['rankinfo'])
-    except:
-        raise
 
     result = dict()
     # 遊戲排名除了overall之外還有family, strategy...，這項資訊要額外存放: {type, rank}
@@ -169,7 +145,8 @@ def get_rank_info(items):
 
     result['overall_rank'] = DEFAULT_NO_VALUE
     result['overall_baverage'] = DEFAULT_NO_VALUE
-    for item in items.get('rankinfo', []):
+    rankinfo = items.get('rankinfo', [])
+    for item in rankinfo:
         try:
             _check_field('rankinfo', 'veryshortprettyname', item)
         except:
@@ -256,11 +233,6 @@ def get_polls(items):
 def _get_links(main, items):
     """[{'name', 'objecttype', 'objectid'}]
     """
-    try:
-        _check_list_fields(main, items)
-    except:
-        raise
-
     result = []
     name_need_cut = False
     # boardgamefamily的name欄位=>Theme: Tropical Islands，以冒號區隔「種類類別」和「類別值」，又如Players: Games with Solitaire Rules
