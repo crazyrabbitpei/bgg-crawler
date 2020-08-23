@@ -338,7 +338,7 @@ def get_stats(items):
     result = dict()
     for field in require_fields:
         try:
-            _check_field(field, field, items)
+            _check_field(field, field, stats)
         except Exception as e:
             logger.error('{0}: {1}'.format(CUR_BGID, e.args))
 
@@ -362,7 +362,7 @@ def get_relatedcounts(items):
     result = dict()
     for field in require_fields:
         try:
-            _check_field(field, field, items)
+            _check_field(field, field, relatedcounts)
         except Exception as e:
             logger.error('{0}: {1}'.format(CUR_BGID, e.args))
 
@@ -385,7 +385,7 @@ def get_linkcounts(items):
     result = dict()
     for field in require_fields:
         try:
-            _check_field(field, field, items)
+            _check_field(field, field, linkcounts)
         except Exception as e:
             logger.error('{0}: {1}'.format(CUR_BGID, e.args))
 
@@ -412,7 +412,7 @@ def get_images(items):
     result = dict()
     for field in require_fields:
         try:
-            _check_field(field, field, items)
+            _check_field(field, field, images)
         except Exception as e:
             logger.error('{0}: {1}'.format(CUR_BGID, e.args))
 
@@ -567,6 +567,7 @@ def connect_bgg(mainurls, bgid):
     return result
 
 def get(mainurls, bgid, store=default_store):
+    global CUR_BGID
     CUR_BGID = bgid
     """
     先以web版撈到的script資訊為基底，再用bgg野生api的結果去更新，因為api版的每種結果筆數不限於6筆以內，所以可以完整補完網頁版的資訊
