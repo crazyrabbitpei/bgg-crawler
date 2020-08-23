@@ -25,6 +25,9 @@ else:
     logger = MyLogger(log_path='./logs',
                       log_file='{0}.log'.format(__name__), name=__name__)
 
+
+# 當前蒐集的桌遊id
+CUR_BGID = None
 # 桌遊資訊會被包在script的這個參數裡
 DEFAULT_PRELOAD_INFO = 'GEEK.geekitemPreload'
 DEFAULT_NO_VALUE = -1
@@ -45,14 +48,41 @@ languagedependences = {
     'Extensive use of text - massive conversion needed to be playable': 4,
     'Unplayable in another language	': 5
 }
-"""
-期望儲存欄位
-"""
-# 網頁版的欄位
-require_fields = ['rankinfo', 'polls', 'stats',
+
+# 網頁版的結果欄位
+WEB_RESULT = ['rankinfo', 'polls', 'stats',
                  'relatedcounts', 'id', 'href', 'name', 'yearpublished', 'minplayers', 'maxplayers', 'minplaytime', 'maxplaytime', 'minage', 'short_description', 'linkcounts', 'alternatenamescount', 'description', 'images', 'imageurl']
-# bgg api版欄位: links和
-api_require_fields = ['links', 'alternatenames']
+# bgg api版結果欄位: links和alternatenames筆網頁版的多很多結果資訊(網頁版陣列結果最多顯示6筆)
+API_RESULT = ['links', 'alternatenames']
+"""
+basic期望儲存欄位
+"""
+RESULT_FIELDS = ['id', 'name', 'yearpublished', 'minplayers', 'maxplayers',
+       'minplaytime', 'maxplaytime', 'minage', 'short_description',
+       'alternatenamescount', 'description', 'overall_rank',
+       'overall_baverage', 'polls_userplayers_best_min',
+       'polls_userplayers_best_max', 'polls_userplayers_recommended_min',
+       'polls_userplayers_recommended_max', 'polls_totalvotes',
+       'polls_boardgameweight_averageweight', 'polls_boardgameweight_votes',
+       'polls_playerage', 'polls_languagedependence', 'stats_usersrated',
+       'stats_average', 'stats_baverage', 'stats_stddev', 'stats_avgweight',
+       'stats_numweights', 'stats_numgeeklists', 'stats_numtrading',
+       'stats_numwanting', 'stats_numwish', 'stats_numowned',
+       'stats_numprevowned', 'stats_numcomments', 'stats_numwishlistcomments',
+       'stats_numhasparts', 'stats_numwantparts', 'stats_views',
+       'stats_playmonth', 'stats_numplays', 'stats_numplays_month',
+       'stats_numfans', 'relatedcounts_news', 'relatedcounts_blogs',
+       'relatedcounts_weblink', 'relatedcounts_podcast',
+       'linkcounts_boardgamedesigner', 'linkcounts_boardgameartist',
+       'linkcounts_boardgamepublisher', 'linkcounts_boardgamehonor',
+       'linkcounts_boardgamecategory', 'linkcounts_boardgamemechanic',
+       'linkcounts_boardgameexpansion', 'linkcounts_boardgameversion',
+       'linkcounts_expandsboardgame', 'linkcounts_boardgameintegration',
+       'linkcounts_contains', 'linkcounts_containedin',
+       'linkcounts_reimplementation', 'linkcounts_reimplements',
+       'linkcounts_boardgamefamily', 'linkcounts_videogamebg',
+       'linkcounts_boardgamesubdomain', 'linkcounts_boardgameaccessory',
+       'linkcounts_commerceweblink']
 
 ctx = ssl.create_default_context()
 ctx.check_hostname = False
@@ -74,7 +104,7 @@ def _check_field(main, field, item, must=True, default=-1):
     return (exist, default)
 
 
-def _check_list_fields(main, items, must=True):
+def _check_list_fields(main, items, require_field_num=None, must=True):
     '''
     確認所有陣列裡的欄位數量一致
     '''
@@ -90,36 +120,46 @@ def _check_list_fields(main, items, must=True):
         raise BgInfoNotComplete('{0} 的各項結果欄位數量不一致: {1}'.format(
             main, cur_fields), traceback.format_exc())
 
+    if require_field_num and require_field_num != len(cur_fields):
+        raise BgInfoNotComplete('{0} 的各項結果欄位數量與預期({1})不同: {2}'.format(
+            main, require_field_num, cur_fields), traceback.format_exc())
+
     return same_field_num
 
 def get_alternatenames(items):
-    """alternatenames: [{nameid, name}]
+    """不一定要存在
+    alternatenames: [{'nameid', 'name'}]
         - nameid: str
         - name: str，不同國家有不同遊戲名稱
     """
     try:
         _check_field('alternatenames', 'alternatenames', items)
-    except:
-        raise
+    except Exception as e:
+        logger.warning('{0}: {1}'.format(CUR_BGID, e.args))
+        items['alternatenames'] = []
+
     try:
-        _check_list_fields('alternatenames', items['alternatenames'])
+        _check_list_fields('alternatenames', items['alternatenames'], len(['nameid', 'name']))
     except:
         raise
 
     return items['alternatenames']
 
 def get_rank_info(items):
-    """rankinfo: [{veryshortprettyname, rank, baverage}]
+    """不一定要存在
+    rankinfo: [{'veryshortprettyname', 'rank', 'baverage'}]
         - veryshortprettyname: Overall/Strategy...，排名種類
         - rank: str，在該種類的名次
         - beverage: str，geek rating
     """
     try:
         _check_field('rankinfo', 'rankinfo', items)
-    except:
-        raise
+    except Exception as e:
+        logger.warning('{0}: {1}'.format(CUR_BGID, e.args))
+        items['rankinfo'] = []
+
     try:
-        _check_list_fields('rankinfo', items['rankinfo'])
+        _check_list_fields('rankinfo', items['rankinfo'], len(['veryshortprettyname', 'rank', 'baverage']))
     except:
         raise
 
@@ -127,14 +167,18 @@ def get_rank_info(items):
     # 遊戲排名除了overall之外還有family, strategy...，這項資訊要額外存放: {type, rank}
     other_category_rank_results = []
 
-    for item in items['rankinfo']:
-        main_name = '{veryshortprettyname}'.format(**item).lower().strip()
-        #print(main_name)
+    result['overall_rank'] = DEFAULT_NO_VALUE
+    result['overall_baverage'] = DEFAULT_NO_VALUE
+    for item in items.get('rankinfo', []):
+        try:
+            _check_field('rankinfo', 'veryshortprettyname', item)
+        except:
+            raise
+
+        main_name = item['veryshortprettyname'].lower().strip()
         if main_name == 'overall':
-            field_name = '{0}_rank'.format(main_name)
-            result[field_name] = item['rank']
-            field_name = '{0}_baverage'.format(main_name)
-            result[field_name] = item['baverage']
+            result['overall_rank'] = item['rank']
+            result['overall_baverage'] = item['baverage']
         else:
             other_category_rank_results.append(
                 {'type': main_name, 'rank': item['rank']})
@@ -144,14 +188,15 @@ def get_rank_info(items):
 
 
 def get_polls(items):
-    """polls: {'userplayers', 'playerage', 'languagedependence', 'boardgameweight'}
-        - userplayers: {best, recommended, totalvotes}，min/max可能為null或int
+    """一定要存在
+    polls: {'userplayers', 'playerage', 'languagedependence', 'boardgameweight'}
+        - userplayers: {'best', 'recommended', 'totalvotes'}，min/max可能為null或int
             - best: [{min, max}]，最佳遊戲人數
             - recommended: [{min, max}]，最佳遊戲人數
             - totalvotes: str，同票人數
-        - playerage: str，適合年零
+        - playerage: str，適合年齡
         - languagedependence: str，文字需求說明
-        - boardgameweight: {averageweight, votes}
+        - boardgameweight: {'averageweight', 'votes'}
             - averageweight: float，ex: 3.265625，遊戲重度(1~5)
             - votes: str，同票人數
     """
@@ -160,56 +205,57 @@ def get_polls(items):
     except:
         raise
 
+    # ============== #
     polls = items['polls']
-    require_fields = ['userplayers', 'playerage', 'languagedependence', 'boardgameweight']
+    require_fields = ['userplayers', 'boardgameweight',
+                      'playerage', 'languagedependence']
     for field in require_fields:
         try:
             _check_field('polls', field, polls)
-        except:
-            raise
+        except Exception as e:
+            logger.error('{0}: {1}'.format(CUR_BGID, e.args))
+
 
     result = dict()
 
-    userplayers = polls['userplayers']
-    for field in userplayers.keys():
+    userplayers = polls.get('userplayers', {})
+    require_fields = ['best', 'recommended', 'totalvotes']
+    for field in require_fields:
         if field == 'totalvotes':
-            result['polls_{0}'.format(field)] = userplayers[field]
+            result['polls_{0}'.format(field)] = userplayers.get(field, 0)
             continue
 
         player_min = DEFAULT_NO_VALUE
         player_max = DEFAULT_NO_VALUE
-        for info in userplayers[field]:
+        for info in userplayers.get(field, []):
             player_min = info.get('min', DEFAULT_NO_VALUE)
             player_max = info.get('max', DEFAULT_NO_VALUE)
             # 以第一筆min和max都有正整數值的結果為主
-            if player_min and player_max:
+            if player_min > 0 and player_max > 0:
                 break
-
-        if not player_min:
-            raise BgInfoNotComplete(
-                '無法得到正確的polls_userplayers_{0}_min'.format(field), traceback.format_exc())
-        if not player_max:
-            raise BgInfoNotComplete(
-                '無法得到正確的polls_userplayers_{0}_max'.format(field), traceback.format_exc())
 
         result['polls_userplayers_{0}_min'.format(field)] = player_min
         result['polls_userplayers_{0}_max'.format(field)] = player_max
+    # ============== #
+    require_fields = ['averageweight', 'votes']
+    boardgameweight = polls.get('boardgameweight', {})
+    for field in require_fields:
+        result['polls_boardgameweight_{0}'.format(field)] = boardgameweight.get(field, DEFAULT_NO_VALUE)
 
-        boardgameweight = polls['boardgameweight']
-
-    for field in boardgameweight.keys():
-        result['polls_boardgameweight_{0}'.format(field)] = boardgameweight[field]
-
-    result['polls_playerage'] = polls['playerage']
-    result['polls_languagedependence'] = languagedependences.get(
-        polls['languagedependence'], DEFAULT_NO_VALUE)
+    # ============== #
+    result['polls_playerage'] = polls.get('playerage', DEFAULT_NO_VALUE)
+    # ============== #
+    languagedependence = polls.get('languagedependence', DEFAULT_NO_VALUE)
+    result['polls_languagedependence'] = languagedependences.get(languagedependence, DEFAULT_NO_VALUE)
     if result['polls_languagedependence'] == DEFAULT_NO_VALUE:
-        raise BgInfoLanguageDependenceUndefined(
-            '尚未定義的語言依賴類別: {0}'.format(polls['languagedependence']), traceback.format_exc())
+        logger.error('尚未定義的語言依賴類別: {0}'.format(languagedependence), traceback.format_exc())
+
     return result
 
 
 def _get_links(main, items):
+    """[{'name', 'objecttype', 'objectid'}]
+    """
     try:
         _check_list_fields(main, items)
     except:
@@ -221,9 +267,15 @@ def _get_links(main, items):
     if main == 'boardgamefamily':
         name_need_cut = True
 
+    require_fields = ['name', 'objecttype', 'objectid']
     for item in items:
         tmp = dict()
-        for field, value in item.items():
+        for field in require_fields:
+            value = item.get(field, DEFAULT_NO_VALUE)
+            # 不完整就不存該筆資訊
+            if value == -1:
+                break
+
             if field == 'name' and name_need_cut:
                 family, famliy_value  = value.split(':')
                 tmp['family'] = family.strip()
@@ -233,7 +285,8 @@ def _get_links(main, items):
     return result
 
 def get_links(items):
-    """links: {'boardgamedesigner', 'boardgameartist', 'boardgamepublisher', 'boardgamehonor', 'boardgamecategory', 'boardgamemechanic', 'boardgameexpansion', 'boardgameversion', 'boardgamefamily'}
+    """一定要存在
+    links: {'boardgamedesigner', 'boardgameartist', 'boardgamepublisher', 'boardgamehonor', 'boardgamecategory', 'boardgamemechanic', 'boardgameexpansion', 'boardgameversion', 'boardgamefamily'}
         - boardgamedesigner/boardgameartist/boardgamepublisher/boardgamehonor/boardgamecategory/boardgamemechanic/boardgameexpansion/boardgameversion/boardgamefamily: [{name, objecttype, objectid}]。boardgamehonor為獲得獎項，boardgamefamily為遊戲背景(種類會放在name裡， ex: Theme: Samurai、Country: Japan、Components: Miniatures)
             - name: str
             - objecttype: str，person/company/family/property/thing/version...
@@ -260,15 +313,17 @@ def get_links(items):
     for field in require_fields:
         try:
             _check_field('links', field, links)
-        except:
-            raise
+        except Exception as e:
+            logger.error('{0}: {1}'.format(CUR_BGID, e.args))
+            links[field] = []
 
         result[field] = _get_links(field, links[field])
 
     return (result, require_fields)
 
 def get_stats(items):
-    """stats: {'usersrated', 'average', 'baverage', 'stddev', 'avgweight', 'numweights', 'numgeeklists', 'numtrading', 'numwanting', 'numwish', 'numowned', 'numprevowned', 'numcomments', 'numwishlistcomments', 'numhasparts', 'numwantparts', 'views', 'playmonth', 'numplays', 'numplays_month', 'numfans'}，numfans為int，其餘都為str
+    """一定要存在
+    stats: {'usersrated', 'average', 'baverage', 'stddev', 'avgweight', 'numweights', 'numgeeklists', 'numtrading', 'numwanting', 'numwish', 'numowned', 'numprevowned', 'numcomments', 'numwishlistcomments', 'numhasparts', 'numwantparts', 'views', 'playmonth', 'numplays', 'numplays_month', 'numfans'}，numfans為int，其餘都為str
         - average: 玩家總平均
         - baverage: geek總平均
     """
@@ -279,21 +334,22 @@ def get_stats(items):
 
     stats = items['stats']
     require_fields = ['usersrated', 'average', 'baverage', 'stddev', 'avgweight', 'numweights', 'numgeeklists', 'numtrading', 'numwanting', 'numwish', 'numowned', 'numprevowned', 'numcomments', 'numwishlistcomments', 'numhasparts', 'numwantparts', 'views', 'playmonth', 'numplays', 'numplays_month', 'numfans']
-    for field in require_fields:
-        try:
-            _check_field('stats', field, stats)
-        except:
-            raise
 
     result = dict()
-    for field in stats.keys():
+    for field in require_fields:
+        try:
+            _check_field(field, field, items)
+        except Exception as e:
+            logger.error('{0}: {1}'.format(CUR_BGID, e.args))
+
         main = 'stats_{0}'.format(field)
-        result[main] = stats[field]
+        result[main] = stats.get(field, DEFAULT_NO_VALUE)
     return result
 
 
 def get_relatedcounts(items):
-    """relatedcounts: {'news', 'blogs', 'weblink', 'podcast'}，都為int
+    """一定要存在
+    relatedcounts: {'news', 'blogs', 'weblink', 'podcast'}，都為int
     """
     try:
         _check_field('relatedcounts', 'relatedcounts', items)
@@ -302,20 +358,21 @@ def get_relatedcounts(items):
 
     relatedcounts = items['relatedcounts']
     require_fields = ['news', 'blogs', 'weblink', 'podcast']
-    for field in require_fields:
-        try:
-            _check_field('relatedcounts', field, relatedcounts)
-        except:
-            raise
 
     result = dict()
-    for field in relatedcounts.keys():
+    for field in require_fields:
+        try:
+            _check_field(field, field, items)
+        except Exception as e:
+            logger.error('{0}: {1}'.format(CUR_BGID, e.args))
+
         main = 'relatedcounts_{0}'.format(field)
-        result[main] = relatedcounts[field]
+        result[main] = relatedcounts.get(field, DEFAULT_NO_VALUE)
     return result
 
 def get_linkcounts(items):
-    """linkcounts: {'boardgamedesigner', 'boardgameartist', 'boardgamepublisher', 'boardgamehonor', 'boardgamecategory', 'boardgamemechanic', 'boardgameexpansion', 'boardgameversion', 'expandsboardgame', 'boardgameintegration', 'contains', 'containedin', 'reimplementation', 'reimplements', 'boardgamefamily', 'videogamebg', 'boardgamesubdomain', 'boardgameaccessory', 'commerceweblink'}，都是int
+    """一定要存在
+    linkcounts: {'boardgamedesigner', 'boardgameartist', 'boardgamepublisher', 'boardgamehonor', 'boardgamecategory', 'boardgamemechanic', 'boardgameexpansion', 'boardgameversion', 'expandsboardgame', 'boardgameintegration', 'contains', 'containedin', 'reimplementation', 'reimplements', 'boardgamefamily', 'videogamebg', 'boardgamesubdomain', 'boardgameaccessory', 'commerceweblink'}，都是int
     """
     try:
         _check_field('linkcounts', 'linkcounts', items)
@@ -324,38 +381,47 @@ def get_linkcounts(items):
 
     linkcounts = items['linkcounts']
     require_fields = ['boardgamedesigner', 'boardgameartist', 'boardgamepublisher', 'boardgamehonor', 'boardgamecategory', 'boardgamemechanic', 'boardgameexpansion', 'boardgameversion', 'expandsboardgame', 'boardgameintegration', 'contains', 'containedin', 'reimplementation', 'reimplements', 'boardgamefamily', 'videogamebg', 'boardgamesubdomain', 'boardgameaccessory', 'commerceweblink']
-    for field in require_fields:
-        try:
-            _check_field('linkcounts', field, linkcounts)
-        except:
-            raise
 
     result = dict()
-    for field in linkcounts.keys():
+    for field in require_fields:
+        try:
+            _check_field(field, field, items)
+        except Exception as e:
+            logger.error('{0}: {1}'.format(CUR_BGID, e.args))
+
+
         main = 'linkcounts_{0}'.format(field)
-        result[main] = linkcounts[field]
+        result[main] = linkcounts.get(field, DEFAULT_NO_VALUE)
     return result
 
 
 def get_images(items):
-    """images: {thumb, square200, previewthumb}，由小到大張遊戲圖片link，ex: https://cf.geekdo-images.com/thumb/img/SJV333FxGVxsOc2XYvtVYx-uMDU=/fit-in/200x150/pic3880340.jpg
+    """不一定要存在
+    images: {'thumb', 'square200', 'previewthumb'}，由小到大張遊戲圖片link，ex: https://cf.geekdo-images.com/thumb/img/SJV333FxGVxsOc2XYvtVYx-uMDU=/fit-in/200x150/pic3880340.jpg
     imageurl: str，遊戲圖片，ex: https://cf.geekdo-images.com/itemrep/img/7KmSH1xYiDDOcIQptnQoXSeOfLU=/fit-in/246x300/pic3880340.jpg
     """
     try:
         _check_field('images', 'images', items)
-    except:
-        raise
+    except Exception as e:
+        logger.error('{0}: {1}'.format(CUR_BGID, e.args))
 
-    images = items['images']
+
+    images = items.get('images', {})
+    require_fields = ['thumb', 'square200', 'previewthumb']
+
     result = dict()
-    for field in images.keys():
-        main = 'images_{0}'.format(field)
-        result[main] = images[field]
+    for field in require_fields:
+        try:
+            _check_field(field, field, items)
+        except Exception as e:
+            logger.error('{0}: {1}'.format(CUR_BGID, e.args))
+
+        result[field] = images.get(field, DEFAULT_NO_VALUE)
     return result
 
 
 def get_others(items):
-    """
+    """一定要存在
     id: str，遊戲編號
     href: str，ex: /boardgame/205896/rising-sun
     name: str，遊戲名稱
@@ -371,28 +437,19 @@ def get_others(items):
     topimageurl: str，不一定存在，遊戲主頁banner圖，ex: https://cf.geekdo-images.com/itemheader/img/FUK6onp6QGuQcN7E6V-sY7dADBk=/800x375/filters:quality(30)/pic3126430.jpg
     """
     result = dict()
-    for field in ['id', 'name', 'yearpublished', 'minplayers', 'maxplayers', 'minplaytime', 'maxplaytime', 'minage', 'short_description', 'alternatenamescount', 'description']:
+    require_fields = ['id', 'name', 'yearpublished', 'minplayers', 'maxplayers', 'minplaytime', 'maxplaytime', 'minage', 'short_description', 'alternatenamescount', 'description']
+    for field in require_fields:
         try:
             _check_field(field, field, items)
-        except:
-            raise
+        except Exception as e:
+            logger.error('{0}: {1}'.format(CUR_BGID, e.args))
 
-        if field == 'description':
-            soup = BeautifulSoup(items[field], 'html.parser')
+
+        value = items.get(field, DEFAULT_NO_VALUE)
+        if value != -1 and field == 'description':
+            soup = BeautifulSoup(value, 'html.parser')
             items[field] = soup.get_text()
-        result[field] = items[field]
-
-    return result
-
-
-def build_other_result(field_type, basic_info):
-    result = dict()
-    result['id'] = basic_info['bgid']
-
-    if field_type == 'rank':
-        pass
-    elif field_type == 'poll':
-        pass
+        else: result[field] = value
 
     return result
 
@@ -510,6 +567,7 @@ def connect_bgg(mainurls, bgid):
     return result
 
 def get(mainurls, bgid, store=default_store):
+    CUR_BGID = bgid
     """
     先以web版撈到的script資訊為基底，再用bgg野生api的結果去更新，因為api版的每種結果筆數不限於6筆以內，所以可以完整補完網頁版的資訊
     """
