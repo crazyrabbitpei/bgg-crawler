@@ -27,7 +27,7 @@ else:
 
 # 桌遊資訊會被包在script的這個參數裡
 DEFAULT_PRELOAD_INFO = 'GEEK.geekitemPreload'
-DEFAULT_NO_VALUE = 'N/A'
+DEFAULT_NO_VALUE = -1
 main = 'https://boardgamegeek.com/boardgame' # 這種方式需要自行parse出script裡的資訊
 # 另一種api: https://api.geekdo.com/api/geekitems?nosession=1&objecttype=thing&subtype=boardgame，可直接得到json
 
@@ -59,16 +59,35 @@ ctx.check_hostname = False
 ctx.verify_mode = ssl.CERT_NONE
 
 
-def _check_field(main, field, item):
-    # if type(field) == list and len(items) > 0:
-    #     for m in field:
-    #         if m not in items[0]:
-    #             raise BgInfoNotComplete('{0} 沒有 {1} 欄位: {2}'.format(main,
-    #                 field, items[0]), traceback.format_exc())
+def _check_field(main, field, item, must=True, default=-1):
+    '''
+    確認欄位是否存在，不存在則回傳預設值
+    '''
+    exist = True
     if field not in item:
+        exist = False
+
+    if must and not exist:
         raise BgInfoNotComplete('{0} 沒有 {1} 欄位: {2}'.format(main,
             field, item), traceback.format_exc())
 
+    return (exist, default)
+
+
+def _check_list_fields(main, items, must=True):
+    '''
+    確認所有陣列裡的欄位數量一致
+    '''
+    same_field_num = False
+    cur_fields = list(zip(*items))
+    if len(items[0].keys()) == len(cur_fields):
+        same_field_num = True
+
+    if must and not same_field_num:
+        raise BgInfoNotComplete('{0} 的各項結果欄位數量不一致: {1}'.format(
+            main, cur_fields), traceback.format_exc())
+
+    return same_field_num
 
 def get_alternatenames(items):
     """alternatenames: [{nameid, name}]
@@ -77,6 +96,10 @@ def get_alternatenames(items):
     """
     try:
         _check_field('alternatenames', 'alternatenames', items)
+    except:
+        raise
+    try:
+        _check_list_fields('alternatenames', items['alternatenames'])
     except:
         raise
 
@@ -90,6 +113,10 @@ def get_rank_info(items):
     """
     try:
         _check_field('rankinfo', 'rankinfo', items)
+    except:
+        raise
+    try:
+        _check_list_fields('rankinfo', items['rankinfo'])
     except:
         raise
 
@@ -114,7 +141,7 @@ def get_rank_info(items):
 
 
 def get_polls(items):
-    """polls: {userplayers, playerage, languagedependence, boardgameweight}
+    """polls: {'userplayers', 'playerage', 'languagedependence', 'boardgameweight'}
         - userplayers: {best, recommended, totalvotes}，min/max可能為null或int
             - best: [{min, max}]，最佳遊戲人數
             - recommended: [{min, max}]，最佳遊戲人數
@@ -130,27 +157,28 @@ def get_polls(items):
     except:
         raise
 
-    result = dict()
     polls = items['polls']
+    require_fields = ['userplayers', 'playerage', 'languagedependence', 'boardgameweight']
+    for field in require_fields:
+        try:
+            _check_field('polls', field, polls)
+        except:
+            raise
+
+    result = dict()
 
     userplayers = polls['userplayers']
     for field in userplayers.keys():
-        player_min = 0
-        player_max = 0
         if field == 'totalvotes':
-            result[field] = userplayers[field]
+            result['polls_{0}'.format(field)] = userplayers[field]
             continue
 
+        player_min = DEFAULT_NO_VALUE
+        player_max = DEFAULT_NO_VALUE
         for info in userplayers[field]:
-            player_min = info['min']
-            player_max = info['max']
-
-
-            result['polls_userplayers_{0}_min'.format(
-                field)] = player_min
-            result['polls_userplayers_{0}_max'.format(
-                field)] = player_max
-
+            player_min = info.get('min', DEFAULT_NO_VALUE)
+            player_max = info.get('max', DEFAULT_NO_VALUE)
+            # 以第一筆min和max都有正整數值的結果為主
             if player_min and player_max:
                 break
 
@@ -161,38 +189,38 @@ def get_polls(items):
             raise BgInfoNotComplete(
                 '無法得到正確的polls_userplayers_{0}_max'.format(field), traceback.format_exc())
 
-    boardgameweight = polls['boardgameweight']
-    for field in boardgameweight.keys():
-        result['polls_boardgameweight_{0}'.format(
-            field)] = boardgameweight[field]
+        result['polls_userplayers_{0}_min'.format(field)] = player_min
+        result['polls_userplayers_{0}_max'.format(field)] = player_max
 
-    result['playerage'] = polls['playerage']
-    result['languagedependence'] = languagedependences.get(polls['languagedependence'], -1)
-    if result['languagedependence'] == -1:
+        boardgameweight = polls['boardgameweight']
+
+    for field in boardgameweight.keys():
+        result['polls_boardgameweight_{0}'.format(field)] = boardgameweight[field]
+
+    result['polls_playerage'] = polls['playerage']
+    result['polls_languagedependence'] = languagedependences.get(
+        polls['languagedependence'], DEFAULT_NO_VALUE)
+    if result['polls_languagedependence'] == DEFAULT_NO_VALUE:
         raise BgInfoLanguageDependenceUndefined(
             '尚未定義的語言依賴類別: {0}'.format(polls['languagedependence']), traceback.format_exc())
     return result
 
 
 def _get_links(main, items):
-    result = []
-    require_fields = ['name', 'objecttype', 'objectid']
-    for field in require_fields:
-        for item in items:
-            try:
-                _check_field(main, field, item)
-            except:
-                raise
+    try:
+        _check_list_fields(main, items)
+    except:
+        raise
 
+    result = []
     name_need_cut = False
-    # name欄位需要做裁切
-    if main in ['boardgamefamily']:
+    # boardgamefamily的name欄位=>Theme: Tropical Islands，以冒號區隔「種類類別」和「類別值」，又如Players: Games with Solitaire Rules
+    if main == 'boardgamefamily':
         name_need_cut = True
 
     for item in items:
         tmp = dict()
-        for field in require_fields:
-            value = item.get(field, DEFAULT_NO_VALUE)
+        for field, value in item.items():
             if field == 'name' and name_need_cut:
                 family, famliy_value  = value.split(':')
                 tmp['family'] = family.strip()
@@ -200,15 +228,6 @@ def _get_links(main, items):
             tmp[field] = value
         result.append(tmp)
     return result
-
-
-def _trans_to_csv_writable_format(data, require_fields):
-    values = []
-    for info in data:
-        columns, value = list(zip(*info.items()))
-        values.append(value)
-
-    return dict(list(zip(columns, list(zip(*values)))))
 
 def get_links(items):
     """links: {'boardgamedesigner', 'boardgameartist', 'boardgamepublisher', 'boardgamehonor', 'boardgamecategory', 'boardgamemechanic', 'boardgameexpansion', 'boardgameversion', 'boardgamefamily'}
@@ -231,21 +250,17 @@ def get_links(items):
     except:
         raise
 
-    #format_result = dict()
     result = dict()
-    require_fields = ['boardgamedesigner', 'boardgameartist', 'boardgamepublisher', 'boardgamehonor', 'boardgamecategory', 'boardgamemechanic', 'boardgameexpansion', 'boardgameversion', 'boardgamefamily']
     links = items['links']
 
+    require_fields = ['boardgamedesigner', 'boardgameartist', 'boardgamepublisher', 'boardgamehonor', 'boardgamecategory', 'boardgamemechanic', 'boardgameexpansion', 'boardgameversion', 'boardgamefamily']
     for field in require_fields:
         try:
-            _check_field(field, field, links)
+            _check_field('links', field, links)
         except:
             raise
 
         result[field] = _get_links(field, links[field])
-        # result = _get_links(field, links[field])
-        # if len(result) > 0:
-        #     format_result[field] = _trans_to_csv_writable_format(result, require_fields)
 
     return (result, require_fields)
 
@@ -260,6 +275,13 @@ def get_stats(items):
         raise
 
     stats = items['stats']
+    require_fields = ['usersrated', 'average', 'baverage', 'stddev', 'avgweight', 'numweights', 'numgeeklists', 'numtrading', 'numwanting', 'numwish', 'numowned', 'numprevowned', 'numcomments', 'numwishlistcomments', 'numhasparts', 'numwantparts', 'views', 'playmonth', 'numplays', 'numplays_month', 'numfans']
+    for field in require_fields:
+        try:
+            _check_field('stats', field, stats)
+        except:
+            raise
+
     result = dict()
     for field in stats.keys():
         main = 'stats_{0}'.format(field)
@@ -276,6 +298,13 @@ def get_relatedcounts(items):
         raise
 
     relatedcounts = items['relatedcounts']
+    require_fields = ['news', 'blogs', 'weblink', 'podcast']
+    for field in require_fields:
+        try:
+            _check_field('relatedcounts', field, relatedcounts)
+        except:
+            raise
+
     result = dict()
     for field in relatedcounts.keys():
         main = 'relatedcounts_{0}'.format(field)
@@ -291,6 +320,13 @@ def get_linkcounts(items):
         raise
 
     linkcounts = items['linkcounts']
+    require_fields = ['boardgamedesigner', 'boardgameartist', 'boardgamepublisher', 'boardgamehonor', 'boardgamecategory', 'boardgamemechanic', 'boardgameexpansion', 'boardgameversion', 'expandsboardgame', 'boardgameintegration', 'contains', 'containedin', 'reimplementation', 'reimplements', 'boardgamefamily', 'videogamebg', 'boardgamesubdomain', 'boardgameaccessory', 'commerceweblink']
+    for field in require_fields:
+        try:
+            _check_field('linkcounts', field, linkcounts)
+        except:
+            raise
+
     result = dict()
     for field in linkcounts.keys():
         main = 'linkcounts_{0}'.format(field)
@@ -360,6 +396,7 @@ def build_other_result(field_type, basic_info):
 
 def parse_geekitem_preload(data, bgid, store=None):
     items = data['item']
+    #print(json.dumps(items, indent=4))
     # --- 主要資訊 ---
     # 沒有巢狀的欄位
     result = get_others(items)
