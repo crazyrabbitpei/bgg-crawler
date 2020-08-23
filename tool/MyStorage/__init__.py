@@ -185,12 +185,28 @@ class MyStorage:
                 self.multi_writers[fname] = self.writer
         return fname
 
-    def store_csv(self, data, file_name=None):
+    def _build_csv_value(self, data, require_fields):
+        """
+        確認csv欄位值順序一樣
+        """
+        value = []
+        for item in data:
+            for field in require_fields:
+                value.append(item[field])
+        return value
+
+    def store_csv(self, data, file_name=None, require_fields=[]):
         """
         :param plain_csv: 是否為csv str
         """
         fname = self._check_store_pointer(file_name)
-        value_fields, value = list(zip(*list(data.items())))
+
+        if len(require_fields) > 0:
+            value_fields = require_fields
+            value = self._build_csv_value(data, require_fields)
+        else:
+            value_fields, value = list(zip(*list(data.items())))
+
         if self.csv_result_need_field_header[fname]:
             self.writer.writerow(value_fields)
             self.csv_result_need_field_header[fname] = False
