@@ -1,4 +1,6 @@
 __pycache__
-data
+*data
 logs
 *test*
+*.db
+*tmp*
