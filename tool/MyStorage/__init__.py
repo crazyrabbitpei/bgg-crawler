@@ -12,25 +12,6 @@ from tool.MyException.bgg import *
 
 
 class MyStorage:
-    """儲存設定
-    預設儲存到file裡，格式為csv，路徑為./data
-    """
-    STORE_MODES = ['file', 'print', 'db']
-    DATA_TYPES = ['csv', 'json']
-    DEFAULT_DATA_PATH = './data'
-    DEFAULT_DATA_NAME = 'bgg'
-    DEFAULT_DATA_TYPE = DATA_TYPES[0]
-    store_config = {
-        'data_path': DEFAULT_DATA_PATH,
-        'data_name': DEFAULT_DATA_NAME,
-        'data_type': DEFAULT_DATA_TYPE,  # csv/json/print
-        'store_mode': 'file',  # file/print
-        'storage': None  # 儲存函式
-    }
-
-    # db儲存指標
-    dbhandle = None
-
     def __init__(self, store_config=None):
         """
         :param store_config: 儲存設定{store_mode, data_type, data_path, data_name}，file模式預設儲存csv，print模式預設直接輸出螢幕
@@ -39,7 +20,24 @@ class MyStorage:
         :data_name: store_mode為file時用到，預設DEFAULT_DATA_NAME
         :data_path: store_mode為file時用到，預設DEFAULT_DATA_PATH
         """
+        """儲存設定
+        預設儲存到file裡，格式為csv，路徑為./data
+        """
+        self.STORE_MODES = ['file', 'print', 'db']
+        self.DATA_TYPES = ['csv', 'json']
+        self.DEFAULT_DATA_PATH = './data'
+        self.DEFAULT_DATA_NAME = 'bgg'
+        self.DEFAULT_DATA_TYPE = self.DATA_TYPES[0]
+        self.store_config = {
+            'data_path': self.DEFAULT_DATA_PATH,
+            'data_name': self.DEFAULT_DATA_NAME,
+            'data_type': self.DEFAULT_DATA_TYPE,  # csv/json/print
+            'store_mode': 'file',  # file/print
+            'storage': None  # 儲存函式
+        }
 
+        # db儲存指標
+        self.dbhandle = None
         # ========= 儲存設定 =========
         if not store_config:
             raise TypeError('__init__() missing 1 required positional argument: {field}'.format(

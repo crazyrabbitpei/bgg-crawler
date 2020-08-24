@@ -1,1 +1,1 @@
-__all__ = ['bgg', 'public']
+__all__ = ['bgg']

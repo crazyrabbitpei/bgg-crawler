@@ -7,14 +7,7 @@ class BggCralwer:
     """
     2020/08/11: version 1.0
     """
-    # 已經蒐集多少筆桌遊資訊: get_bg_info用
-    bg_info_cnt = 0
-    BG_INFO_URLS= {
-        'web': 'https://boardgamegeek.com/boardgame',
-        'api': 'https://api.geekdo.com/api/geekitems?nosession=1&objecttype=thing&subtype=boardgame'
-    }
 
-    RANK_URL = 'https://boardgamegeek.com/browse/boardgame/page'
 
     def __init__(self, store_config=None):
         """
@@ -22,6 +15,15 @@ class BggCralwer:
         ::store_mode: 資料儲存方式，file/db/print，預設file
         ::data_type: 儲存格式，json/csv，預設csv
         """
+        # 已經蒐集多少筆桌遊資訊: get_bg_info用
+        self.bg_info_cnt = 0
+        self.BG_INFO_URLS = {
+            'web': 'https://boardgamegeek.com/boardgame',
+            'api': 'https://api.geekdo.com/api/geekitems?nosession=1&objecttype=thing&subtype=boardgame'
+        }
+
+        self.RANK_URL = 'https://boardgamegeek.com/browse/boardgame/page'
+
         if not store_config:
             raise TypeError('__init__() missing 1 required positional argument: {field}'.format(field='store_config'))
 
