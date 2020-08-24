@@ -39,17 +39,17 @@ class DataManage:
     def select_table(self, tname):
         return pd.read_sql_query("SELECT * FROM {0}".format(tname), self.connection)
 
-    def get_bg_ids_from_rank(self, id_field_name=None, tname=None, limit=None, between=None, rank_field='rank'):
+    def get_bg_ids_from_rank(self, id_field_name=None, tname=None, limit=None, ranges=None, rank_field='rank'):
         """
         :param id_field_name: str, 需要的id結果欄位
         :param tname: str, table name
         :param limit: int, 最多回傳幾筆，沒有就預設全拿
-        :param between: list, 區間範圍, [low_value, high_value], 若high_value為-1 代表拿取所有大於low_value的結果，若low_value為-1 代表拿取所有小於high_value的結果
+        :param ranges: list, 區間範圍, [low_value, high_value], 若high_value為-1 代表拿取所有大於low_value的結果，若low_value為-1 代表拿取所有小於high_value的結果
         """
         command = "SELECT {0} FROM {1}".format(id_field_name, tname)
 
-        if between and type(between) == list:
-            low, high = between
+        if ranges and type(ranges) == list:
+            low, high = ranges
             if high ==  -1:
                 command = "{0} where {1} > {2}".format(
                     command, rank_field, low)
@@ -58,9 +58,11 @@ class DataManage:
                     command, rank_field, high)
             else:
                 command = "{0} where {1} between {2} and {3}".format(
-                    command, rank_field, *between)
+                    command, rank_field, *ranges)
         elif limit and type(limit) == int:
             command = "{0} limit {1}".format(command, limit)
+
+        logger.debug(command)
 
         df = pd.read_sql_query(command, self.connection)
         return df[id_field_name].values.tolist()
