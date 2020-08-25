@@ -165,7 +165,7 @@ def get_rank_info(items):
 
 
 def get_polls(items):
-    """一定要存在
+    """不一定要存在
     polls: {'userplayers', 'playerage', 'languagedependence', 'boardgameweight'}
         - userplayers: {'best', 'recommended', 'totalvotes'}，min/max可能為null或int
             - best: [{min, max}]，最佳遊戲人數
@@ -179,18 +179,18 @@ def get_polls(items):
     """
     try:
         _check_field('polls', 'polls', items)
-    except:
-        raise
+    except Exception as e:
+        logger.warning('{0}: {1}'.format(CUR_BGID, e.args))
 
     # ============== #
-    polls = items['polls']
+    polls = items.get('polls', {})
     require_fields = ['userplayers', 'boardgameweight',
                       'playerage', 'languagedependence']
     for field in require_fields:
         try:
             _check_field('polls', field, polls)
         except Exception as e:
-            logger.error('{0}: {1}'.format(CUR_BGID, e.args))
+            logger.warning('{0}: {1}'.format(CUR_BGID, e.args))
 
 
     result = dict()
@@ -225,7 +225,7 @@ def get_polls(items):
     languagedependence = polls.get('languagedependence', DEFAULT_NO_VALUE)
     result['polls_languagedependence'] = languagedependences.get(languagedependence, DEFAULT_NO_VALUE)
     if result['polls_languagedependence'] == DEFAULT_NO_VALUE:
-        logger.error('尚未定義的語言依賴類別: {0}'.format(languagedependence), traceback.format_exc())
+        logger.warning('尚未定義的語言依賴類別: {0}'.format(languagedependence), traceback.format_exc())
 
     return result
 
@@ -294,17 +294,17 @@ def get_links(items):
     return (result, require_fields)
 
 def get_stats(items):
-    """一定要存在
+    """不一定要存在
     stats: {'usersrated', 'average', 'baverage', 'stddev', 'avgweight', 'numweights', 'numgeeklists', 'numtrading', 'numwanting', 'numwish', 'numowned', 'numprevowned', 'numcomments', 'numwishlistcomments', 'numhasparts', 'numwantparts', 'views', 'playmonth', 'numplays', 'numplays_month', 'numfans'}，numfans為int，其餘都為str
         - average: 玩家總平均
         - baverage: geek總平均
     """
     try:
         _check_field('stats', 'stats', items)
-    except:
-        raise
+    except Exception as e:
+        logger.warning('{0}: {1}'.format(CUR_BGID, e.args))
 
-    stats = items['stats']
+    stats = items.get('stats', {})
     require_fields = ['usersrated', 'average', 'baverage', 'stddev', 'avgweight', 'numweights', 'numgeeklists', 'numtrading', 'numwanting', 'numwish', 'numowned', 'numprevowned', 'numcomments', 'numwishlistcomments', 'numhasparts', 'numwantparts', 'views', 'playmonth', 'numplays', 'numplays_month', 'numfans']
 
     result = dict()
@@ -312,7 +312,7 @@ def get_stats(items):
         try:
             _check_field(field, field, stats)
         except Exception as e:
-            logger.error('{0}: {1}'.format(CUR_BGID, e.args))
+            logger.warning('{0}: {1}'.format(CUR_BGID, e.args))
 
         main = 'stats_{0}'.format(field)
         result[main] = stats.get(field, DEFAULT_NO_VALUE)
@@ -320,15 +320,15 @@ def get_stats(items):
 
 
 def get_relatedcounts(items):
-    """一定要存在
+    """不一定要存在
     relatedcounts: {'news', 'blogs', 'weblink', 'podcast'}，都為int
     """
     try:
         _check_field('relatedcounts', 'relatedcounts', items)
-    except:
-        raise
+    except Exception as e:
+        logger.warning('{0}: {1}'.format(CUR_BGID, e.args))
 
-    relatedcounts = items['relatedcounts']
+    relatedcounts = items.get('relatedcounts', {})
     require_fields = ['news', 'blogs', 'weblink', 'podcast']
 
     result = dict()
@@ -336,7 +336,7 @@ def get_relatedcounts(items):
         try:
             _check_field(field, field, relatedcounts)
         except Exception as e:
-            logger.error('{0}: {1}'.format(CUR_BGID, e.args))
+            logger.warning('{0}: {1}'.format(CUR_BGID, e.args))
 
         main = 'relatedcounts_{0}'.format(field)
         result[main] = relatedcounts.get(field, DEFAULT_NO_VALUE)
@@ -375,7 +375,7 @@ def get_images(items):
     try:
         _check_field('images', 'images', items)
     except Exception as e:
-        logger.error('{0}: {1}'.format(CUR_BGID, e.args))
+        logger.warning('{0}: {1}'.format(CUR_BGID, e.args))
 
 
     images = items.get('images', {})
@@ -386,7 +386,7 @@ def get_images(items):
         try:
             _check_field(field, field, images)
         except Exception as e:
-            logger.error('{0}: {1}'.format(CUR_BGID, e.args))
+            logger.warning('{0}: {1}'.format(CUR_BGID, e.args))
 
         result[field] = images.get(field, DEFAULT_NO_VALUE)
     return result
@@ -428,7 +428,7 @@ def get_others(items):
 
 def parse_geekitem_preload(data, bgid, store=None):
     items = data['item']
-    #print(json.dumps(items, indent=4))
+    print(json.dumps(items, indent=4))
     # --- 主要資訊 ---
     # 沒有巢狀的欄位
     result = get_others(items)
