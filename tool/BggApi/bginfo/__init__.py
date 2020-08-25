@@ -225,7 +225,7 @@ def get_polls(items):
     languagedependence = polls.get('languagedependence', DEFAULT_NO_VALUE)
     result['polls_languagedependence'] = languagedependences.get(languagedependence, DEFAULT_NO_VALUE)
     if result['polls_languagedependence'] == DEFAULT_NO_VALUE:
-        logger.warning('尚未定義的語言依賴類別: {0}'.format(languagedependence), traceback.format_exc())
+        logger.warning('尚未定義的語言依賴類別: {0}'.format(languagedependence))
 
     return result
 
@@ -428,7 +428,7 @@ def get_others(items):
 
 def parse_geekitem_preload(data, bgid, store=None):
     items = data['item']
-    print(json.dumps(items, indent=4))
+    #print(json.dumps(items, indent=4))
     # --- 主要資訊 ---
     # 沒有巢狀的欄位
     result = get_others(items)
