@@ -152,7 +152,13 @@ def get_rank_info(items):
         except:
             raise
 
-        main_name = item['veryshortprettyname'].lower().strip()
+        prettynames = item.get('prettyname', 'unkown').split(' ')[:-1]
+        prettyname = ''.join(prettynames)
+        main_name = item.get('veryshortprettyname', prettyname)
+        if not main_name:
+            main_name = prettyname
+
+        main_name = main_name.lower().strip()
         if main_name == 'overall':
             result['overall_rank'] = item['rank']
             result['overall_baverage'] = item['baverage']
