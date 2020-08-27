@@ -255,9 +255,9 @@ def _get_links(main, items):
                 break
 
             if field == 'name' and name_need_cut:
-                family, famliy_value  = value.split(':')
+                family, *famliy_value  = value.split(':')
                 tmp['family'] = family.strip()
-                tmp['famliy_value'] = famliy_value.strip()
+                tmp['famliy_value'] = ':'.join(famliy_value).strip()
             tmp[field] = value
         result.append(tmp)
     return result
