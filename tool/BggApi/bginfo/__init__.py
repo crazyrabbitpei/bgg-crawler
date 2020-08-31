@@ -424,10 +424,12 @@ def get_others(items):
 
 
         value = items.get(field, DEFAULT_NO_VALUE)
-        if value and field == 'description':
-            soup = BeautifulSoup(value, 'html.parser')
-            items[field] = soup.get_text()
-        else: result[field] = value
+        # description先不蒐集
+        # if value and field == 'description':
+        #     soup = BeautifulSoup(value, 'html.parser')
+        #     value = soup.get_text()
+
+        result[field] = value
 
     return result
 
