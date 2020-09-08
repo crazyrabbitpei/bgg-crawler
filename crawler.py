@@ -55,7 +55,7 @@ if __name__ == '__main__':
     ids = read_bgid_list(tname, id_field_name, *rest)
     try:
         #test_rank_list()
-        test_bg_info(ids)
+        test_bg_info([4086])
     except BggConnectionError as e:
         logger.error(e.args)
     except Exception as e:
